@@ -1,0 +1,69 @@
+# Compila l'app Cyclette su un Mac virtuale di GitHub e la manda su TestFlight.
+# Si avvia a mano: scheda Actions → "Cyclette su TestFlight" → Run workflow.
+name: Cyclette su TestFlight
+
+on:
+  workflow_dispatch:
+
+jobs:
+  testflight:
+    runs-on: macos-26            # Mac con Xcode 26 (obbligatorio per caricare su App Store Connect)
+    timeout-minutes: 45
+    env:
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      BUILD_NUMBER: ${{ github.run_number }}.${{ github.run_attempt }}
+    steps:
+      - name: Scarica il codice
+        uses: actions/checkout@v4
+
+      - name: Controlla i segreti
+        run: |
+          for v in TEAM_ID ASC_KEY_ID ASC_ISSUER_ID; do
+            if [ -z "${!v}" ]; then echo "::error::Manca il segreto per $v (Settings → Secrets and variables → Actions)"; exit 1; fi
+          done
+          xcodebuild -version
+
+      - name: Prepara la chiave App Store Connect
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+          if ! grep -q "BEGIN PRIVATE KEY" "$RUNNER_TEMP/AuthKey.p8"; then
+            echo "::error::Il segreto ASC_KEY_P8 deve contenere tutto il file .p8, comprese le righe BEGIN/END PRIVATE KEY"; exit 1
+          fi
+
+      - name: Genera il progetto Xcode
+        run: |
+          brew install xcodegen
+          xcodegen generate
+
+      - name: Compila (archivio non firmato)
+        # Non firmare qui: altrimenti ogni Mac virtuale creerebbe un nuovo certificato fino al limite di Apple
+        run: |
+          set -o pipefail
+          xcodebuild archive \
+            -project Cyclette.xcodeproj -scheme Cyclette -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Cyclette.xcarchive" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY=""
+
+      - name: Firma e carica su TestFlight
+        run: |
+          set -o pipefail
+          sed "s/TEAM_ID_QUI/$TEAM_ID/" ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Cyclette.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/AuthKey.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "✅ Build $BUILD_NUMBER caricata: tra 5–15 minuti la trovi in App Store Connect → TestFlight"
+
+      - name: Cancella la chiave
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"
