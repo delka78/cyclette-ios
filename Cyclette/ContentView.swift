@@ -7,7 +7,7 @@ import SwiftUI
 /// Indirizzo della web app (GitHub Pages). Gli aggiornamenti si fanno sempre caricando index.html su GitHub:
 /// l'app iPhone non va ricompilata.
 enum AppConfig {
-    static let url = URL(string: "https://delka78.github.io/")!
+    static let url = URL(string: "https://delka78.github.io/cyclette/")!
 }
 
 struct ContentView: View {
