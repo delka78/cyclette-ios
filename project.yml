@@ -1,0 +1,49 @@
+# Progetto Xcode descritto in testo: lo genera XcodeGen sul Mac virtuale di GitHub (non serve un Mac).
+name: Cyclette
+options:
+  bundleIdPrefix: it.delka78
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    SWIFT_VERSION: "5.0"
+targets:
+  Cyclette:
+    type: application
+    platform: iOS
+    deploymentTarget: "16.0"
+    sources:
+      - path: Cyclette
+        excludes:
+          - ble-polyfill.js
+      - path: Cyclette/ble-polyfill.js
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: it.delka78.cyclette   # deve essere uguale al Bundle ID registrato su Apple
+        PRODUCT_NAME: Cyclette
+        TARGETED_DEVICE_FAMILY: "1"                      # solo iPhone
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_STYLE: Automatic
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Cyclette
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIStatusBarStyle: UIStatusBarStyleLightContent
+        NSBluetoothAlwaysUsageDescription: Serve per collegare la cyclette e la fascia cardio.
+        NSCameraUsageDescription: Solo se scegli di girare un video dal selettore dei file.
+        NSMicrophoneUsageDescription: Solo se giri un video dal selettore dei file.
+        ITSAppUsesNonExemptEncryption: false
+    scheme: {}
